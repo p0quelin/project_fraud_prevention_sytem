@@ -105,9 +105,21 @@ Potential areas for further development:
 - Network analysis for detecting coordinated fraud attacks
 - Anomaly detection techniques for zero-day fraud patterns
 
-## License
+## Case Study
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+A comprehensive case study including data analysis and visualizations is available in [CASE_STUDY.md](CASE_STUDY.md). This case study demonstrates:
+
+- Distribution of fraud scenarios
+- Fraud rates by terminal type
+- Transaction amount patterns
+- Temporal patterns of fraud
+- Customer behavior analysis
+- Geographic fraud patterns
+
+Key visualizations from the case study:
+
+![Fraud Scenarios](report_images/fraud_scenarios.png)
+![Terminal Fraud Rates](report_images/terminal_fraud_rates.png)
 
 ## Acknowledgments
 
