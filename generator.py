@@ -520,3 +520,35 @@ def save_generated_data(transactions_df, terminal_profiles_table, customer_profi
         print("Successfully saved all data files to the data directory")
     except Exception as e:
         print(f"Error saving data files: {str(e)}")
+
+# Main block to execute when the script runs directly
+if __name__ == "__main__":
+    # Configuration for the dataset
+    N_CUSTOMERS = 100  # Increased for more realistic dataset
+    N_TERMINALS = 200
+    NB_DAYS = 30  # One month of data
+    START_DATE = "2024-01-01"
+    RADIUS = 7  # Radius for connecting customers to terminals
+    
+    print("Generating fraud detection dataset...")
+    print(f"Parameters: {N_CUSTOMERS} customers, {N_TERMINALS} terminals, {NB_DAYS} days of data")
+    
+    # Generate the dataset
+    customer_profiles, terminal_profiles, transactions = generate_dataset(
+        n_customers=N_CUSTOMERS,
+        n_terminals=N_TERMINALS,
+        nb_days=NB_DAYS,
+        start_date=START_DATE,
+        r=RADIUS
+    )
+    
+    # Add seasonal patterns to transactions
+    transactions = add_seasonal_patterns(transactions, START_DATE)
+    
+    # Add fraudulent transactions
+    transactions = add_frauds(customer_profiles, terminal_profiles, transactions)
+    
+    # Save the generated data
+    save_generated_data(transactions, terminal_profiles, customer_profiles)
+    
+    print("Dataset generation complete!")

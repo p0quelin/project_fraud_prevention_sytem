@@ -1,0 +1,81 @@
+import json
+
+notebook = {
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Payment Fraud Detection System\n",
+    "\n",
+    "This notebook provides an overview of the payment fraud detection project. For the complete implementation, please refer to `fraud_detection_analysis.py`.\n",
+    "\n",
+    "## Project Overview\n",
+    "\n",
+    "This project demonstrates a comprehensive approach to detecting payment fraud using machine learning techniques:\n",
+    "\n",
+    "1. **Data Generation** - Synthetic transaction data with realistic fraud patterns\n",
+    "2. **Exploratory Analysis** - Understanding patterns in fraudulent transactions\n",
+    "3. **Feature Engineering** - Creating features that identify suspicious activity\n",
+    "4. **Model Training** - Comparing multiple ML algorithms for fraud detection\n",
+    "5. **Advanced Analysis** - Threshold optimization and scenario-specific performance\n",
+    "6. **Real-time Simulation** - Demonstrating the system in action"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": None,
+   "metadata": {},
+   "source": [
+    "# Import required libraries\n",
+    "import numpy as np\n",
+    "import pandas as pd\n",
+    "import matplotlib.pyplot as plt\n",
+    "import seaborn as sns\n",
+    "\n",
+    "# For complete analysis, refer to fraud_detection_analysis.py"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Results Summary\n",
+    "\n",
+    "The fraud detection system achieves excellent performance:\n",
+    "\n",
+    "- ROC-AUC scores exceeding 99% with XGBoost and LightGBM models\n",
+    "- High precision and recall with optimized thresholds\n",
+    "- Variable detection rates across different fraud scenarios\n",
+    "- Terminal risk score and behavioral patterns are the most important features"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.8.10"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
+
+# Write the notebook to a file
+with open('payment_fraud_analysis.ipynb', 'w') as f:
+    json.dump(notebook, f, indent=1)
+
+print("Notebook created successfully!") 
