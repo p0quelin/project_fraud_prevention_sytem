@@ -346,25 +346,50 @@ def analyze_model_results():
         with open('models/xgboost_model.pkl', 'rb') as f:
             model = pickle.load(f)
             
-        # If model exists, create a feature importance plot
+        # Extract the classifier from the pipeline
+        # Assuming the classifier is the last step in the pipeline
+        if hasattr(model, 'steps'):
+            # For sklearn Pipeline objects
+            classifier = model.steps[-1][1]
+        elif isinstance(model, tuple) and len(model) > 2:
+            # For older format where model might be a tuple
+            classifier = model[2]
+        else:
+            # Fallback if we can't determine the structure
+            classifier = model
+        
+        # Get feature importances based on the model type
         plt.figure(figsize=(12, 8))
-        features = model[2].feature_names_in_
-        importances = model[2].feature_importances_
         
-        indices = np.argsort(importances)[::-1]
-        top_n = 15
-        
-        plt.barh(range(top_n), importances[indices][:top_n], align='center')
-        plt.yticks(range(top_n), [features[i] for i in indices[:top_n]])
-        plt.title('Top 15 Feature Importances for Fraud Detection', fontsize=14)
-        plt.xlabel('Relative Importance', fontsize=12)
-        plt.tight_layout()
-        plt.savefig('report_images/feature_importance.png', dpi=300, bbox_inches='tight')
-        plt.close()
-        
-        print("\nModel analysis complete.")
+        if hasattr(classifier, 'feature_importances_'):
+            importances = classifier.feature_importances_
+            
+            # Get feature names if available, otherwise use indices
+            if hasattr(classifier, 'feature_names_in_'):
+                features = classifier.feature_names_in_
+            elif hasattr(classifier, 'feature_names'):
+                features = classifier.feature_names
+            else:
+                features = [f"Feature {i}" for i in range(len(importances))]
+                
+            # Get top N features
+            top_n = min(15, len(importances))
+            indices = np.argsort(importances)[::-1][:top_n]
+            
+            # Create plot
+            plt.barh(range(top_n), importances[indices][:top_n], align='center')
+            plt.yticks(range(top_n), [features[i] for i in indices])
+            plt.title('Top 15 Feature Importances for Fraud Detection', fontsize=14)
+            plt.xlabel('Relative Importance', fontsize=12)
+            plt.tight_layout()
+            plt.savefig('report_images/feature_importance.png', dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            print("\nModel analysis complete: Feature importance visualization created.")
+        else:
+            print("\nModel doesn't provide feature importances. Skipping visualization.")
     except Exception as e:
-        print(f"Model analysis skipped: {str(e)}")
+        print(f"\nModel analysis skipped: {str(e)}")
 
 def generate_html_report():
     """Generate an HTML report with all visualizations"""

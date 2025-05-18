@@ -532,37 +532,46 @@ def real_time_simulation(best_model_pipeline, feature_df):
             }
     
     # Get model from the best pipeline
-    best_pipeline = pickle.load(open('models/xgboost_model.pkl', 'rb'))
-    
-    # Create fraud detection system
-    fraud_system = FraudDetectionSystem(best_pipeline, threshold=0.7)
-    
-    # Prepare test transactions (use a small sample from the feature set)
-    X = feature_df.drop(['TX_FRAUD', 'TX_FRAUD_SCENARIO', 'TRANSACTION_ID', 
-                         'CUSTOMER_ID', 'TERMINAL_ID'], axis=1, errors='ignore')
-    y = feature_df['TX_FRAUD']
-    
-    # Get a small sample with mixed fraud/non-fraud
-    fraud_sample = X[y == 1].sample(min(5, (y == 1).sum()), random_state=42).values
-    non_fraud_sample = X[y == 0].sample(min(5, (y == 0).sum()), random_state=42).values
-    
-    test_transactions = np.vstack([fraud_sample, non_fraud_sample])
-    true_labels = np.concatenate([np.ones(len(fraud_sample)), np.zeros(len(non_fraud_sample))])
-    
-    # Process each transaction and show results
-    print("Processing test transactions...")
-    print("-" * 80)
-    print(f"{'ID':4} | {'True Label':10} | {'Decision':10} | {'Fraud Prob':10} | {'Confidence':10}")
-    print("-" * 80)
-    
-    for i, (transaction, true_label) in enumerate(zip(test_transactions, true_labels)):
-        result = fraud_system.process_transaction(transaction)
+    try:
+        best_pipeline = pickle.load(open('models/xgboost_model.pkl', 'rb'))
         
-        print(f"{result['transaction_id']:4} | {'Fraud' if true_label == 1 else 'Legitimate':10} | "
-              f"{result['decision']:10} | {result['fraud_probability']:.4f}    | {result['confidence']:.4f}")
+        # Create fraud detection system
+        fraud_system = FraudDetectionSystem(best_pipeline, threshold=0.7)
+        
+        # Prepare test transactions (use a small sample from the feature set)
+        X = feature_df.drop(['TX_FRAUD', 'TX_FRAUD_SCENARIO', 'TRANSACTION_ID', 
+                            'CUSTOMER_ID', 'TERMINAL_ID'], axis=1, errors='ignore')
+        y = feature_df['TX_FRAUD']
+        
+        # Get a small sample with mixed fraud/non-fraud
+        fraud_sample = X[y == 1].sample(min(5, (y == 1).sum()), random_state=42).values
+        non_fraud_sample = X[y == 0].sample(min(5, (y == 0).sum()), random_state=42).values
+        
+        test_transactions = np.vstack([fraud_sample, non_fraud_sample])
+        true_labels = np.concatenate([np.ones(len(fraud_sample)), np.zeros(len(non_fraud_sample))])
+        
+        # Process each transaction and show results
+        print("Processing test transactions...")
+        print("-" * 80)
+        print(f"{'ID':4} | {'True Label':10} | {'Decision':10} | {'Fraud Prob':10} | {'Confidence':10}")
+        print("-" * 80)
+        
+        for i, (transaction, true_label) in enumerate(zip(test_transactions, true_labels)):
+            result = fraud_system.process_transaction(transaction)
+            result['actual_fraud'] = true_label
+            
+            # Display result
+            status = "⚠️ FLAGGED AS SUSPICIOUS" if result['is_flagged'] else "✅ APPROVED"
+            actual = "(Actual: FRAUD)" if result['actual_fraud'] == 1 else "(Actual: LEGITIMATE)"
+            print(f"{result['transaction_id']:4} | {'Fraud' if true_label == 1 else 'Legitimate':10} | "
+                f"{result['decision']:10} | {result['fraud_probability']:.4f}    | {result['confidence']:.4f}")
+        
+        print("-" * 80)
+        print(f"Processed {fraud_system.processed_count} transactions, {fraud_system.fraud_detected_count} flagged as fraud")
     
-    print("-" * 80)
-    print(f"Processed {fraud_system.processed_count} transactions, {fraud_system.fraud_detected_count} flagged as fraud")
+    except Exception as e:
+        print(f"Error in real-time simulation: {str(e)}")
+        print("Ensure the model is properly trained and saved before running the simulation.")
 
 def main():
     """Main execution function"""

@@ -24,27 +24,60 @@ wheels/
 .installed.cfg
 *.egg
 
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# VS Code
-.vscode/
-
-# PyCharm
-.idea/
-
-# Environment
-.env
-.venv
-env/
+# Virtual environments
 venv/
+env/
 ENV/
 env.bak/
 venv.bak/
 
-# Mac OS
-.DS_Store
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
 
-# Project specifics
-data/temp/
-*.log
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+# Uncomment if you don't want to include generated data in the repo
+# data/*.csv
+# models/*.pkl
+
+# Large media files
+*.mp4
+*.tiff
+*.avi
+*.flv
+*.mov
+*.wmv
