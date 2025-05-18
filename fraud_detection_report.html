@@ -1,0 +1,83 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Fraud Detection Analytics Report</title>
+        <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; margin: 20px; }
+            h1 { color: #2c3e50; text-align: center; }
+            h2 { color: #3498db; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+            .figure { margin: 20px 0; text-align: center; }
+            .figure img { max-width: 100%; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+            .figure p { font-style: italic; color: #7f8c8d; }
+        </style>
+    </head>
+    <body>
+        <h1>Payment Fraud Detection Analytics Report</h1>
+        
+        <h2>1. Fraud Distribution Overview</h2>
+        <div class="figure">
+            <img src="report_images/fraud_distribution.png" alt="Fraud Distribution">
+            <p>Distribution of fraudulent vs. legitimate transactions in the dataset.</p>
+        </div>
+        
+        <h2>2. Fraud Scenario Analysis</h2>
+        <div class="figure">
+            <img src="report_images/fraud_scenarios.png" alt="Fraud Scenarios">
+            <p>Distribution of different fraud scenarios in the dataset.</p>
+        </div>
+        
+        <h2>3. Terminal Type Analysis</h2>
+        <div class="figure">
+            <img src="report_images/terminal_fraud_rates.png" alt="Terminal Fraud Rates">
+            <p>Fraud rates across different terminal types.</p>
+        </div>
+        
+        <h2>4. Transaction Amount Analysis</h2>
+        <div class="figure">
+            <img src="report_images/amount_distribution_boxplot.png" alt="Amount Distribution Boxplot">
+            <p>Boxplot showing the distribution of transaction amounts for legitimate and fraudulent transactions.</p>
+        </div>
+        <div class="figure">
+            <img src="report_images/amount_distribution_kde.png" alt="Amount Distribution KDE">
+            <p>Density plot showing the distribution of transaction amounts.</p>
+        </div>
+        
+        <h2>5. Temporal Patterns of Fraud</h2>
+        <div class="figure">
+            <img src="report_images/fraud_by_hour.png" alt="Fraud by Hour">
+            <p>Fraud rates by hour of day.</p>
+        </div>
+        <div class="figure">
+            <img src="report_images/fraud_by_day.png" alt="Fraud by Day">
+            <p>Fraud rates by day of week.</p>
+        </div>
+        <div class="figure">
+            <img src="report_images/fraud_by_month.png" alt="Fraud by Month">
+            <p>Fraud rates by month.</p>
+        </div>
+        
+        <h2>6. Customer Behavior Analysis</h2>
+        <div class="figure">
+            <img src="report_images/amount_deviation.png" alt="Amount Deviation">
+            <p>Distribution of transaction amount deviations from customer averages.</p>
+        </div>
+        
+        <h2>7. Geographic Analysis</h2>
+        <div class="figure">
+            <img src="report_images/transaction_distances.png" alt="Transaction Distances">
+            <p>Distribution of distances between customers and terminals.</p>
+        </div>
+        <div class="figure">
+            <img src="report_images/terminal_geography.png" alt="Terminal Geography">
+            <p>Geographic distribution of terminals with fraud rates.</p>
+        </div>
+        
+        <h2>8. Model Feature Importance</h2>
+        <div class="figure">
+            <img src="report_images/feature_importance.png" alt="Feature Importance">
+            <p>Top features for fraud detection based on the XGBoost model.</p>
+        </div>
+    </body>
+    </html>
+    
