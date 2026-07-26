@@ -1,71 +1,67 @@
-"""
-Tests for the data generation functionality.
-"""
+"""Tests for deterministic synthetic payment generation."""
 
-import os
-import sys
 import pandas as pd
 import pytest
 
-# Add the parent directory to the path so we can import modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from generator import PaymentSimulator, SimulationConfig, allocate_counts, save_result
 
-# Import the generator functions
-from generator import generate_customer_profiles_table, generate_terminal_profiles_table, generate_transactions
 
-def test_customer_profiles_generation():
-    """Test that customer profiles are generated with the right structure."""
-    n_customers = 10
-    customer_profiles = generate_customer_profiles_table(n_customers)
-    
-    # Assert the dataframe has the right number of rows
-    assert len(customer_profiles) == n_customers
-    
-    # Assert the dataframe has the required columns
-    required_columns = ['CUSTOMER_ID', 'x_customer_id', 'y_customer_id', 'mean_amount', 'std_amount']
-    for col in required_columns:
-        assert col in customer_profiles.columns
+def config(**changes):
+    values = dict(seed=7, start_date="2025-01-01", days=10, n_customers=20,
+                  n_merchants=30, target_fraud_rate=0.08)
+    values.update(changes)
+    return SimulationConfig(**values)
 
-def test_terminal_profiles_generation():
-    """Test that terminal profiles are generated with the right structure."""
-    n_terminals = 10
-    terminal_profiles = generate_terminal_profiles_table(n_terminals)
-    
-    # Assert the dataframe has the right number of rows
-    assert len(terminal_profiles) == n_terminals
-    
-    # Assert the dataframe has the required columns
-    required_columns = ['TERMINAL_ID', 'x_terminal_id', 'y_terminal_id', 'terminal_type']
-    for col in required_columns:
-        assert col in terminal_profiles.columns
-    
-    # Assert that terminal types are one of the expected values
-    valid_types = ['atm', 'pos', 'online', 'retail']
-    for term_type in terminal_profiles['terminal_type']:
-        assert term_type in valid_types
 
-def test_transactions_generation():
-    """Test that transactions are generated properly."""
-    # Generate small test data
-    n_customers = 5
-    n_terminals = 10
-    nb_days = 5
-    
-    customer_profiles = generate_customer_profiles_table(n_customers)
-    terminal_profiles = generate_terminal_profiles_table(n_terminals)
-    
-    # Generate transactions
-    transactions = generate_transactions(customer_profiles, terminal_profiles, nb_days, 
-                                        start_date="2020-01-01", r=5)
-    
-    # Assert transactions dataframe is not empty
-    assert not transactions.empty
-    
-    # Assert the dataframe has the required columns
-    required_columns = ['TRANSACTION_ID', 'TX_DATETIME', 'CUSTOMER_ID', 'TERMINAL_ID', 
-                        'TX_AMOUNT', 'TX_TIME_SECONDS', 'TX_TIME_DAYS', 'TX_FRAUD']
-    for col in required_columns:
-        assert col in transactions.columns
-    
-    # Assert that some transactions are marked as fraud
-    assert transactions['TX_FRAUD'].sum() > 0 
+def test_same_seed_produces_identical_tables():
+    first = PaymentSimulator(config()).run()
+    second = PaymentSimulator(config()).run()
+    for table in ("customers", "accounts", "merchants", "campaigns", "transactions"):
+        pd.testing.assert_frame_equal(getattr(first, table), getattr(second, table))
+
+
+def test_different_seed_changes_transactions():
+    first = PaymentSimulator(config(seed=1)).run().transactions
+    second = PaymentSimulator(config(seed=2)).run().transactions
+    assert not first.equals(second)
+
+
+def test_transaction_integrity_and_scenario_allocation():
+    result = PaymentSimulator(config()).run()
+    tx = result.transactions
+    assert tx.transaction_id.is_unique
+    assert tx.event_timestamp.is_monotonic_increasing
+    assert set(tx.loc[tx.is_fraud, "fraud_scenario"]) == {
+        "cnp_account_compromise", "stolen_card", "cash_out_burst", "terminal_compromise"
+    }
+    assert tx.loc[~tx.is_fraud, ["fraud_scenario", "campaign_id"]].isna().all().all()
+    legitimate = int((~tx.is_fraud).sum())
+    expected = round(legitimate * 0.08 / 0.92)
+    assert int(tx.is_fraud.sum()) == expected
+
+
+def test_save_result_writes_all_tables(tmp_path):
+    result = PaymentSimulator(config()).run()
+    save_result(result, tmp_path)
+    assert {path.name for path in tmp_path.iterdir()} == {
+        "customers.csv", "accounts.csv", "merchants.csv", "campaigns.csv", "transactions.csv"
+    }
+
+
+def test_saved_output_is_byte_reproducible(tmp_path):
+    first_dir = tmp_path / "first"
+    second_dir = tmp_path / "second"
+    save_result(PaymentSimulator(config()).run(), first_dir)
+    save_result(PaymentSimulator(config()).run(), second_dir)
+    for filename in ("customers.csv", "accounts.csv", "merchants.csv", "campaigns.csv", "transactions.csv"):
+        assert (first_dir / filename).read_bytes() == (second_dir / filename).read_bytes()
+
+
+def test_config_rejects_invalid_values():
+    with pytest.raises(ValueError, match="fraud_rate"):
+        config(target_fraud_rate=0)
+    with pytest.raises(ValueError, match="sum to one"):
+        config(scenario_weights={name: 0.5 for name in allocate_counts(1, {
+            "cnp_account_compromise": .25, "stolen_card": .25,
+            "cash_out_burst": .25, "terminal_compromise": .25,
+        })})
