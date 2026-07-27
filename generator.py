@@ -141,7 +141,11 @@ class PaymentSimulator:
         return pd.DataFrame(rows)
 
     def _fraud_transactions(self, accounts, merchants, legitimate_count):
-        fraud_count = max(1, round(legitimate_count * self.config.target_fraud_rate / (1 - self.config.target_fraud_rate)))
+        fraud_count = round(
+            legitimate_count
+            * self.config.target_fraud_rate
+            / (1 - self.config.target_fraud_rate)
+        )
         counts = allocate_counts(fraud_count, self.config.weights)
         campaigns: list[dict] = []
         rows: list[dict] = []
@@ -173,8 +177,10 @@ class PaymentSimulator:
                     "start_timestamp": start,
                     "end_timestamp": min(start + pd.Timedelta(minutes=duration_minutes), self.end),
                 })
-                for offset in np.sort(self.rng.integers(0, max(1, duration_minutes * 60), allocation)):
-                    timestamp = min(start + pd.Timedelta(seconds=int(offset)), self.end - pd.Timedelta(microseconds=1))
+                remaining_seconds = int((self.end - start).total_seconds())
+                offset_horizon = min(duration_minutes * 60, remaining_seconds)
+                for offset in np.sort(self.rng.integers(0, offset_horizon, allocation)):
+                    timestamp = start + pd.Timedelta(seconds=int(offset))
                     if scenario == "terminal_compromise":
                         victim = accounts.iloc[int(self.rng.integers(0, len(accounts)))]
                     else:
@@ -186,7 +192,10 @@ class PaymentSimulator:
                         timestamp, victim.customer_id, victim.account_id, merchant, amount,
                         victim.credit_limit, True, scenario, campaign_id
                     ))
-        return pd.DataFrame(campaigns), pd.DataFrame(rows)
+        campaign_columns = (
+            "campaign_id", "fraud_scenario", "start_timestamp", "end_timestamp"
+        )
+        return pd.DataFrame(campaigns, columns=campaign_columns), pd.DataFrame(rows)
 
     def _transaction_row(self, timestamp, customer_id, account_id, merchant, amount, limit,
                          is_fraud, scenario, campaign_id):
@@ -246,7 +255,7 @@ def validate_result(result: SimulationResult, config: SimulationConfig) -> None:
     if not (unlabeled == ~tx.is_fraud).all():
         raise ValueError("fraud labels and provenance are inconsistent")
     expected = round((~tx.is_fraud).sum() * config.target_fraud_rate / (1 - config.target_fraud_rate))
-    if int(tx.is_fraud.sum()) != max(1, expected):
+    if int(tx.is_fraud.sum()) != expected:
         raise ValueError("fraud prevalence does not match configured allocation")
     campaign_ids = set(result.campaigns.campaign_id)
     if not set(tx.loc[tx.is_fraud, "campaign_id"]).issubset(campaign_ids):

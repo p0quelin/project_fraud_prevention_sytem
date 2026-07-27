@@ -40,6 +40,31 @@ def test_transaction_integrity_and_scenario_allocation():
     assert int(tx.is_fraud.sum()) == expected
 
 
+def test_small_sample_does_not_force_a_fraud_transaction():
+    result = PaymentSimulator(config(
+        seed=0, days=1, n_customers=1, n_merchants=4,
+        target_fraud_rate=0.002,
+    )).run()
+
+    assert len(result.transactions) == 1
+    assert not result.transactions.is_fraud.any()
+    assert result.campaigns.empty
+
+
+def test_campaign_offsets_stay_within_remaining_simulation_horizon():
+    simulation_config = config(days=1, target_fraud_rate=0.8)
+    result = PaymentSimulator(simulation_config).run()
+    fraud = result.transactions[result.transactions.is_fraud]
+    campaign_ends = result.campaigns.set_index("campaign_id").end_timestamp
+
+    assert (fraud.event_timestamp < PaymentSimulator(simulation_config).end).all()
+    assert (fraud.event_timestamp != PaymentSimulator(simulation_config).end - pd.Timedelta(microseconds=1)).all()
+    assert all(
+        row.event_timestamp <= campaign_ends[row.campaign_id]
+        for row in fraud.itertuples()
+    )
+
+
 def test_save_result_writes_all_tables(tmp_path):
     result = PaymentSimulator(config()).run()
     save_result(result, tmp_path)
