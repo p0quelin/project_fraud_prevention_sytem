@@ -69,10 +69,13 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Project specific
-# Uncomment if you don't want to include generated data in the repo
-# data/*.csv
-# models/*.pkl
+# Generated project artifacts
+data/*
+!data/.gitkeep
+models/
+images/
+report_images/
+*.html
 
 # Large media files
 *.mp4
