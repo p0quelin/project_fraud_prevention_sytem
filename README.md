@@ -61,8 +61,9 @@ python generator.py \
 This writes five untracked CSV files under `data/`: customers, accounts, merchants,
 campaigns, and transactions. Fraud counts are allocated from the requested rate
 and scenario weights using deterministic largest-remainder rounding. The simulator
-fails before saving if identifier, foreign-key, chronological, amount, provenance,
-or fraud-count validation fails.
+fails before saving if identifier, ownership, foreign-key, chronological, amount,
+campaign-window, provenance, or fraud-count validation fails. Start timestamps may
+include an explicit UTC offset and are normalized to UTC.
 
 ## Next milestone
 
