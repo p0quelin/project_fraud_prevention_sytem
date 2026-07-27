@@ -3,7 +3,9 @@
 import pandas as pd
 import pytest
 
-from generator import PaymentSimulator, SimulationConfig, allocate_counts, save_result
+from generator import (
+    PaymentSimulator, SimulationConfig, allocate_counts, save_result, validate_result,
+)
 
 
 def config(**changes):
@@ -90,3 +92,39 @@ def test_config_rejects_invalid_values():
             "cnp_account_compromise": .25, "stolen_card": .25,
             "cash_out_burst": .25, "terminal_compromise": .25,
         })})
+    with pytest.raises(ValueError, match="start_date"):
+        config(start_date="not-a-date")
+
+
+def test_timezone_aware_start_date_is_normalized_to_utc():
+    simulation = PaymentSimulator(config(start_date="2025-01-01T02:00:00+02:00"))
+
+    assert simulation.start == pd.Timestamp("2025-01-01T00:00:00Z")
+
+
+@pytest.mark.parametrize(
+    ("column", "replacement", "message"),
+    [
+        ("customer_id", "cust_missing", "customer foreign key"),
+        ("terminal_id", "term_missing", "terminal foreign key"),
+    ],
+)
+def test_validation_rejects_broken_transaction_foreign_keys(column, replacement, message):
+    simulation_config = config()
+    result = PaymentSimulator(simulation_config).run()
+    result.transactions.loc[0, column] = replacement
+
+    with pytest.raises(ValueError, match=message):
+        validate_result(result, simulation_config)
+
+
+def test_validation_rejects_campaign_scenario_mismatch():
+    simulation_config = config()
+    result = PaymentSimulator(simulation_config).run()
+    fraud_index = result.transactions.index[result.transactions.is_fraud][0]
+    current = result.transactions.loc[fraud_index, "fraud_scenario"]
+    replacement = next(name for name in allocate_counts(0, simulation_config.weights) if name != current)
+    result.transactions.loc[fraud_index, "fraud_scenario"] = replacement
+
+    with pytest.raises(ValueError, match="does not match"):
+        validate_result(result, simulation_config)

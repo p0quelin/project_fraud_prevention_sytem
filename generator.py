@@ -42,6 +42,12 @@ class SimulationConfig:
             raise ValueError(f"scenario_weights must contain {sorted(SCENARIO_WEIGHTS)}")
         if any(weight < 0 for weight in weights.values()) or not np.isclose(sum(weights.values()), 1):
             raise ValueError("scenario_weights must be nonnegative and sum to one")
+        try:
+            timestamp = pd.Timestamp(self.start_date)
+        except (TypeError, ValueError) as error:
+            raise ValueError("start_date must be a valid timestamp") from error
+        if pd.isna(timestamp):
+            raise ValueError("start_date must be a valid timestamp")
 
     @property
     def weights(self) -> Mapping[str, float]:
@@ -63,7 +69,8 @@ class PaymentSimulator:
     def __init__(self, config: SimulationConfig):
         self.config = config
         self.rng = np.random.default_rng(config.seed)
-        self.start = pd.Timestamp(config.start_date, tz="UTC")
+        start = pd.Timestamp(config.start_date)
+        self.start = start.tz_localize("UTC") if start.tzinfo is None else start.tz_convert("UTC")
         self.end = self.start + pd.Timedelta(days=config.days)
 
     def run(self) -> SimulationResult:
@@ -241,16 +248,39 @@ def allocate_evenly(total: int, groups: int) -> list[int]:
 def validate_result(result: SimulationResult, config: SimulationConfig) -> None:
     """Fail before saving if identifiers, labels, or configured rates are invalid."""
     tx = result.transactions
+    entity_keys = {
+        "customers": (result.customers, "customer_id"),
+        "accounts": (result.accounts, "account_id"),
+        "merchants": (result.merchants, "merchant_id"),
+        "campaigns": (result.campaigns, "campaign_id"),
+    }
+    for table_name, (frame, key) in entity_keys.items():
+        if frame[key].isna().any() or not frame[key].is_unique:
+            raise ValueError(f"{table_name} must have non-null unique {key} values")
     if tx.empty or not tx.transaction_id.is_unique:
         raise ValueError("transactions must be nonempty with unique IDs")
     if not tx.event_timestamp.is_monotonic_increasing:
         raise ValueError("transactions must be chronologically ordered")
+    start = PaymentSimulator(config).start
+    end = start + pd.Timedelta(days=config.days)
+    if (tx.event_timestamp < start).any() or (tx.event_timestamp >= end).any():
+        raise ValueError("transaction timestamps must be within the simulation horizon")
     if (tx.amount <= 0).any() or not np.allclose(tx.amount * 100, np.round(tx.amount * 100)):
         raise ValueError("amounts must be positive and currency-rounded")
+    if not set(tx.customer_id).issubset(set(result.customers.customer_id)):
+        raise ValueError("transaction customer foreign key is invalid")
     if not set(tx.account_id).issubset(set(result.accounts.account_id)):
         raise ValueError("transaction account foreign key is invalid")
     if not set(tx.merchant_id).issubset(set(result.merchants.merchant_id)):
         raise ValueError("transaction merchant foreign key is invalid")
+    if not set(tx.terminal_id).issubset(set(result.merchants.terminal_id)):
+        raise ValueError("transaction terminal foreign key is invalid")
+    account_owners = result.accounts.set_index("account_id").customer_id
+    if not (tx.customer_id.to_numpy() == tx.account_id.map(account_owners).to_numpy()).all():
+        raise ValueError("transaction customer does not own its account")
+    merchant_terminals = result.merchants.set_index("merchant_id").terminal_id
+    if not (tx.terminal_id.to_numpy() == tx.merchant_id.map(merchant_terminals).to_numpy()).all():
+        raise ValueError("transaction terminal does not belong to its merchant")
     unlabeled = tx.fraud_scenario.isna() & tx.campaign_id.isna()
     if not (unlabeled == ~tx.is_fraud).all():
         raise ValueError("fraud labels and provenance are inconsistent")
@@ -260,6 +290,28 @@ def validate_result(result: SimulationResult, config: SimulationConfig) -> None:
     campaign_ids = set(result.campaigns.campaign_id)
     if not set(tx.loc[tx.is_fraud, "campaign_id"]).issubset(campaign_ids):
         raise ValueError("fraud campaign foreign key is invalid")
+    campaigns = result.campaigns.set_index("campaign_id")
+    if not campaigns.empty:
+        invalid_window = (
+            (campaigns.start_timestamp < start)
+            | (campaigns.start_timestamp >= campaigns.end_timestamp)
+            | (campaigns.end_timestamp > end)
+        )
+        if invalid_window.any():
+            raise ValueError("campaign timestamps must form valid simulation windows")
+        fraud = tx.loc[tx.is_fraud]
+        joined = fraud.join(
+            campaigns[["fraud_scenario", "start_timestamp", "end_timestamp"]],
+            on="campaign_id",
+            rsuffix="_campaign",
+        )
+        if not (joined.fraud_scenario == joined.fraud_scenario_campaign).all():
+            raise ValueError("transaction fraud scenario does not match its campaign")
+        if not (
+            (joined.event_timestamp >= joined.start_timestamp)
+            & (joined.event_timestamp <= joined.end_timestamp)
+        ).all():
+            raise ValueError("fraud transaction falls outside its campaign window")
 
 
 def save_result(result: SimulationResult, output_dir: str | Path) -> None:
